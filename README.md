@@ -105,14 +105,7 @@ Only the following regions are supported for this guidance:
 * us-east-1
 * us-west-2
 * us-east-2
-* eu-central-1
-* sa-east-1
-* ap-northeast-2
-* eu-west-2
 * ap-northeast-1
-* ap-southeast-1
-* ap-southeast-2
-* ca-central-1
 
 Deploying the guidance in other regions may lead to errors or inconsistent behavior.
 
@@ -161,7 +154,6 @@ This user will be responsible to perform the following configuration steps:
 1. Select the `redshiftBaseCapacity` blueprint parameter and edit it order to change its value to 8. This change will set the RS serverless base capacity to 8 [RPUs](https://docs.aws.amazon.com/redshift/latest/mgmt/serverless-capacity.html) for all SageMaker Unified Studio projects allowing you to save on costs.
 1. Now you are ready to click on the `Open data portal` button at the top right corner of the page to access the SageMaker Unified Studio portal experience and continue with the [Data engineer](#data-engineer) steps.
 1. You will be redirected to the `Project list` section, create click on `Create Project` button and name it `SalesForecastingProject`. For the Project Profile select `Data Analytics and Al-ML Model Development` and click on `Continue`.
-1. On the second step of the project creation enter a unique name for the `SageMaker Unified Studio LakeHouse Catalog`, for example *sales-forecasting-catalog* (make sure you are lowercase letters, numbers, underscores and hyphens for the value of this field).
 1. Wait for the project to complete (this could take several minutes).
 1. Once the project is created you should be redirected to the project overview page. Now click on the `Members` section you have on the left menu and add the IAM Identity Center users you have created for your Data Engineer and ML Engineer personas (you can omit this step if you want to run all the guidance with the same IAM IC user).
 1. At the top center of the page you will find the _Project_ collapsible menu, expand the menu, select the `Compute` section and under the `Data Warehouse` tab make sure a *Redshift Serverless* compute is provisioned. You can provision more compute resources if needed for your project users at a later time.

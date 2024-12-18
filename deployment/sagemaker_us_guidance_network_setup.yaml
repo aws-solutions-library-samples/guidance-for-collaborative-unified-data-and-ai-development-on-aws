@@ -5,13 +5,24 @@ Description: >
   The template also creates a route from each private subnets to a NAT gateway with EIP in the public subnet, and a route in the public subnet to an IGW.
   This setup enables internet connectivity from SageMaker Unified Studio VPC which allows usage of all AWS services (SO9562).
 
+Parameters:
+  useVpcEndpoints:
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: false
+    Description: This controls whether VPC endpoints are created or not.
+
 Mappings:
+  # found with describe-vpc-endpoint-services --service-names com.amazonaws.<region>.redshift-serverless
+  # AZ IDs are fetched with aws ec2 describe-availability-zones --region <region> --query 'AvailabilityZones[*].[ZoneName, ZoneId]' --output text
   AvailabilityZonesId:
     eu-west-1:
       AZ1: euw1-az1
       AZ2: euw1-az2
       AZ3: euw1-az3
-      AZ4: ""  
+      AZ4: ""
     us-east-1:
       AZ1: use1-az1
       AZ2: use1-az2
@@ -34,13 +45,13 @@ Mappings:
       AZ4: ""
     sa-east-1:
       AZ1: sae1-az1
-      AZ2: sae1-az3
-      AZ3: ""
-      AZ4: ""  
+      AZ2: sae1-az2
+      AZ3: sae1-az3
+      AZ4: ""
     ap-northeast-2:
       AZ1: apne2-az1
-      AZ2: apne2-az3
-      AZ3: ""
+      AZ2: apne2-az2
+      AZ3: apne2-az3
       AZ4: ""
     eu-west-2:
       AZ1: euw2-az2
@@ -65,31 +76,47 @@ Mappings:
     ca-central-1:
       AZ1: cac1-az1
       AZ2: cac1-az2
-      AZ3: ""
+      AZ3: cac1-az4
       AZ4: ""
 
 Conditions:
+  useVpcEndpoints: !Equals [!Ref useVpcEndpoints, "true"]
+
   codeWhispererEnabledRegion: !Equals [!Ref "AWS::Region", 'us-east-1']
   qEnabledRegion: !Equals [!Ref "AWS::Region", 'us-east-1']
   isUSEast1: !Equals [!Ref "AWS::Region", 'us-east-1']
+  isSAEast1: !Equals [!Ref "AWS::Region", 'sa-east-1']
+  isCACentral1: !Equals [!Ref "AWS::Region", 'ca-central-1']
   
   hasAZ1ForRegion: !Not [!Equals [!FindInMap [AvailabilityZonesId, !Ref "AWS::Region", AZ1], ""]]
   hasAZ2ForRegion: !Not [!Equals [!FindInMap [AvailabilityZonesId, !Ref "AWS::Region", AZ2], ""]]
   hasAZ3ForRegion: !Not [!Equals [!FindInMap [AvailabilityZonesId, !Ref "AWS::Region", AZ3], ""]]
   hasAZ4ForRegion: !Not [!Equals [!FindInMap [AvailabilityZonesId, !Ref "AWS::Region", AZ4], ""]]
   
-  createVPCEWithTwoSubnets: !And [!Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Not [!Condition hasAZ3ForRegion]]
-  createVPCEWithThreeSubnets: !And [!Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Condition hasAZ3ForRegion]
+  createVPCEWithTwoSubnets: !And [!Condition useVpcEndpoints, !Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Not [!Condition hasAZ3ForRegion]]
+  createVPCEWithThreeSubnets: !And [!Condition useVpcEndpoints, !Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Condition hasAZ3ForRegion]
 
-  createVPCEWithTwoSubnetsRedshiftServerless: !And [!Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Not [!Condition hasAZ3ForRegion]]
-  createVPCEWithThreeSubnetsRedshiftServerlessNotUSEast1: !And [!Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Condition hasAZ3ForRegion, !Not [!Condition isUSEast1]]
-  createVPCEWithThreeSubnetsRedshiftServerlessUSEast1: !And [!Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Condition hasAZ4ForRegion, !Condition isUSEast1]
+  createVPCEWithTwoSubnetsRedshiftServerless: !And [!Condition useVpcEndpoints, !Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Not [!Condition hasAZ3ForRegion]]
+  createVPCEWithThreeSubnetsRedshiftServerlessNotUSEast1: !And [!Condition useVpcEndpoints, !Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Condition hasAZ3ForRegion, !Not [!Condition isUSEast1]]
+  createVPCEWithThreeSubnetsRedshiftServerlessUSEast1: !And [!Condition useVpcEndpoints, !Condition hasAZ1ForRegion, !Condition hasAZ2ForRegion, !Condition hasAZ4ForRegion, !Condition isUSEast1]
 
-  createVPCEWithTwoSubnetsCodeWhisperer: !And [!Condition codeWhispererEnabledRegion, !Condition createVPCEWithTwoSubnets]
-  createVPCEWithThreeSubnetsCodeWhisperer: !And [!Condition codeWhispererEnabledRegion, !Condition createVPCEWithThreeSubnets]
+  createVPCEWithTwoSubnetsCodeWhisperer: !And [!Condition useVpcEndpoints, !Condition codeWhispererEnabledRegion, !Condition createVPCEWithTwoSubnets]
+  createVPCEWithThreeSubnetsCodeWhisperer: !And [!Condition useVpcEndpoints, !Condition codeWhispererEnabledRegion, !Condition createVPCEWithThreeSubnets]
 
-  createVPCEWithTwoSubnetsQ: !And [!Condition qEnabledRegion, !Condition createVPCEWithTwoSubnets]
-  createVPCEWithThreeSubnetsQ: !And [!Condition qEnabledRegion, !Condition createVPCEWithThreeSubnets]
+  createVPCEWithTwoSubnetsQ: !And [!Condition useVpcEndpoints, !Condition qEnabledRegion, !Condition createVPCEWithTwoSubnets]
+  createVPCEWithThreeSubnetsQ: !And [!Condition useVpcEndpoints, !Condition qEnabledRegion, !Condition createVPCEWithThreeSubnets]
+
+  createVPCEWithTwoSubnetsCodeCommit: !And [!Condition useVpcEndpoints, !Condition isSAEast1]
+  createVPCEWithThreeSubnetsCodeCommit: !And [!Condition useVpcEndpoints, !Not [!Condition isSAEast1]]
+
+  createVPCEWithTwoSubnetsGitCodeCommit: !And [!Condition useVpcEndpoints, !Condition isSAEast1]
+  createVPCEWithThreeSubnetsGitCodeCommit: !And [!Condition useVpcEndpoints, !Not [!Condition isSAEast1]]
+
+  createVPCEWithTwoSubnetsEMR: !And [!Condition useVpcEndpoints, !Condition isCACentral1]
+  createVPCEWithThreeSubnetsEMR: !And [!Condition useVpcEndpoints, !Not [!Condition isCACentral1]]
+
+  createVPCEWithTwoSubnetsRedshift: !And [!Condition useVpcEndpoints, !Condition isCACentral1]
+  createVPCEWithThreeSubnetsRedshift: !And [!Condition useVpcEndpoints, !Not [!Condition isCACentral1]]
 
 Resources:
   SageMakerUnifiedStudioVpc:
@@ -381,7 +408,7 @@ Resources:
   # CodeCommit VPC-E
   ############################################################
   SageMakerUnifiedStudioCodeCommitVpcEndpointA:
-    Condition: createVPCEWithTwoSubnets
+    Condition: createVPCEWithTwoSubnetsCodeCommit
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codecommit'
@@ -392,10 +419,10 @@ Resources:
         - !Ref SageMakerUnifiedStudioSecurityGroup
       SubnetIds:
         - !Ref SageMakerUnifiedStudioPrivateSubnet1
-        - !Ref SageMakerUnifiedStudioPrivateSubnet2
+        - !Ref SageMakerUnifiedStudioPrivateSubnet3
   
   SageMakerUnifiedStudioCodeCommitVpcEndpointB:
-    Condition: createVPCEWithThreeSubnets
+    Condition: createVPCEWithThreeSubnetsCodeCommit
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codecommit'
@@ -413,7 +440,7 @@ Resources:
   # Git CodeCommit VPC-E
   ############################################################
   SageMakerUnifiedStudioGitCodeCommitVpcEndpointA:
-    Condition: createVPCEWithTwoSubnets
+    Condition: createVPCEWithTwoSubnetsGitCodeCommit
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.git-codecommit'
@@ -424,10 +451,10 @@ Resources:
         - !Ref SageMakerUnifiedStudioSecurityGroup
       SubnetIds:
         - !Ref SageMakerUnifiedStudioPrivateSubnet1
-        - !Ref SageMakerUnifiedStudioPrivateSubnet2
+        - !Ref SageMakerUnifiedStudioPrivateSubnet3
 
   SageMakerUnifiedStudioGitCodeCommitVpcEndpointB:
-    Condition: createVPCEWithThreeSubnets
+    Condition: createVPCEWithThreeSubnetsGitCodeCommit
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.git-codecommit'
@@ -664,7 +691,7 @@ Resources:
   # Redshift VPC-E
   ############################################################
   SageMakerUnifiedStudioRedshiftVpcEndpointA:
-    Condition: createVPCEWithTwoSubnets
+    Condition: createVPCEWithTwoSubnetsRedshift
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.redshift'
@@ -678,7 +705,7 @@ Resources:
         - !Ref SageMakerUnifiedStudioPrivateSubnet2
 
   SageMakerUnifiedStudioRedshiftVpcEndpointB:
-    Condition: createVPCEWithThreeSubnets
+    Condition: createVPCEWithThreeSubnetsRedshift
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.redshift'
@@ -984,7 +1011,7 @@ Resources:
   # EMR VPC-E
   ############################################################
   SageMakerUnifiedStudioEMRVpcEndpointA:
-    Condition: createVPCEWithTwoSubnets
+    Condition: createVPCEWithTwoSubnetsEMR
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.elasticmapreduce'
@@ -998,7 +1025,7 @@ Resources:
         - !Ref SageMakerUnifiedStudioPrivateSubnet2
   
   SageMakerUnifiedStudioEMRVpcEndpointB:
-    Condition: createVPCEWithThreeSubnets
+    Condition: createVPCEWithThreeSubnetsEMR
     Type: AWS::EC2::VPCEndpoint
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.elasticmapreduce'
